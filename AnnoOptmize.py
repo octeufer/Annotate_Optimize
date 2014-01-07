@@ -42,7 +42,7 @@ class dataengine:
         fields = reader.fields
         for sr in reader.shapeRecords():           
             annopoi = dict(type="Feature",attributes=dict(), \
-                           uniqueid=int(float(sr.record[8])),layername=shpname, \
+                           uniqueid=int(float(sr.record[9])),layername=shpname, \
                            geometry=sr.shape.__geo_interface__)
             '''
             annopoi = {"type": "Feature", \
@@ -67,9 +67,10 @@ class dataengine:
         for p in self.db.annopois.find({"layername":plyrname}):
             pgeo = p["geometry"]["coordinates"]
             polygeo = dict(type="Polygon",coordinates=rectp(pgeo,3,3))
-            newba = barrier(polygeo)
-            newba.setlayername(plyrname)
-            newba.setattributes(p["attributes"])
+            newba = dict(type="Feature",attributes=dict(), \
+                         layername=plyrname, \
+                         geometry=polygeo)
+            print newba
             self.db.barriergeo.insert(newba)
     
     def insertlocgeo(self,annopoint):
@@ -82,8 +83,13 @@ class dataengine:
         
     def insertannobarrier(self,annopoly):
         pgeo = dict(type="Polygon",coordinates=annopoly)
+        '''
         locbarrier = barrier(pgeo)
         locbarrier.setlayername("locgeo")
+        '''
+        locbarrier = dict(type="Feature",attributes=dict(), \
+                          layername="locgeo", \
+                          geometry = pgeo)
         self.db.barriergeo.insert(locbarrier)
     
     def delannobarrier(self):
