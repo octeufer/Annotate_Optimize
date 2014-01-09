@@ -142,11 +142,7 @@ def gensubcfg(spoints):
     expoints = np.array(expandps)
     return expoints
 
-def genSolve(expoints,points):
-    solve = np.zeros((len(points),4),np.int32)
-    extri = Delaunay(expoints)
-    conflictg = conflictgraph(expoints,extri,250)
-    #xmin = points
+def genLayerConstruct(points):
     lenv = [points[:,0].min(),points[:,1].min(),points[:,0].max(),points[:,1].max()]
     midp = [(lenv[0] + lenv[2])/2,(lenv[1] + lenv[3])/2]
     trip = Delaunay(points)
@@ -188,7 +184,13 @@ def genSolve(expoints,points):
                 lalist.extend(plist[i])
             plist.append([i for i in range(len(points)) if i not in lalist])
             break
-    return conflictg,extri,solve,plist
+    return plist
+
+def genSolve(expoints,points):
+    solve = np.zeros((len(points),4),np.int32)
+    extri = Delaunay(expoints)
+    conflictg = conflictgraph(expoints,extri,250)
+    return conflictg,extri,solve
 
 def accesssubg(conflictg):
     acesubg = list()
