@@ -9,6 +9,7 @@ from scipy.spatial import Delaunay
 import math
 import shapefile
 import random
+import mcpAlgorithm
 
 shpname = 'd:/data/annooptimize/Annodata/'
 pointfeaturepath = 'd:/data/annooptimize/Annodata/supermarket.shp'
@@ -37,6 +38,48 @@ def genPshp(plist,points,name):
         for j in range(len(plist[i])):
             w.point(points[plist[i][j]][0],points[plist[i][j]][1])
             w.record(player=str(i),pnum=str(plist[i][j]))
+    w.save(shpname + name)
+
+def genEXPshp(psub,expoints,name):
+    w = shapefile.Writer(shapefile.POINT)
+    w.field('pnum','C','40')
+    w.field('porinum','C','40')
+    for i,point in enumerate(expoints):
+        w.point(point[0],point[1])
+        w.record(pnum=str(i % 4),porinum=str(psub[i / 4]))
+    w.save(shpname + name)
+
+def genSolveshp(allsolve,name):
+    w = shapefile.Writer(shapefile.POINT)
+    w.field('pnum','C','40')
+    w.field('annonum','C','40')
+    for i,solve in enumerate(allsolve):
+        for j in range(4):
+            if solve[j][0]>0:
+                w.point(solve[j][0],solve[j][1])
+                w.record(pnum=str(i),annonum=str(j))
+    w.save(shpname + name)
+
+def rectp(rpoint,height,width):
+    height = float(height) / 1000 * 10000
+    width = float(width) / 1000 * 10000
+    dx = width/2
+    dy = height/2
+    minx = rpoint[0]-dx
+    miny = rpoint[1]-dy
+    maxx = rpoint[0]+dx
+    maxy = rpoint[1]+dy
+    return [[[minx,maxy],[minx,miny],[maxx,miny],[maxx,maxy],[minx,maxy]]]
+
+def genPolySolveshp(allsolve,name):
+    w = shapefile.Writer(shapefile.POLYGON)
+    w.field('pnum','C','40')
+    w.field('annonum','C','40')
+    for i,solve in enumerate(allsolve):
+        for j in range(4):
+            if solve[j][0]>0:
+                w.poly(parts=rectp([solve[j][0],solve[j][1]],10,15))
+                w.record(pnum=str(i),annonum=str(j))
     w.save(shpname + name)
 
 def edgeselection(linelist):
@@ -186,11 +229,11 @@ def genLayerConstruct(points):
             break
     return plist
 
-def genSolve(expoints,points):
-    solve = np.zeros((len(points),4),np.int32)
+def genSolve(expoints):
+    #solve = np.zeros((len(points),4),np.int32)
     extri = Delaunay(expoints)
     conflictg = conflictgraph(expoints,extri,250)
-    return conflictg,extri,solve
+    return conflictg,extri#,solve
 
 def accesssubg(conflictg):
     acesubg = list()
@@ -213,7 +256,57 @@ def accesssubg(conflictg):
     for i in range(conflictg.shape[0]):
         if visited[i]==0:
             BFS(conflictg,i)
-    return acesubg,visited
+    return acesubg
+
+def solvegenerate(accesssubg,points,allsolve):
+    isolate = list()
+    subsolves = list()
+    #solvepoints = np.zeros((points.shape[0],2),np.float64)
+    #greedym = mcpAlgorithm.greedymcp()
+             
+    for subg in accesssubg:
+        if(len(subg)==1):
+            isolate.extend(subg)
+        else:
+            print subg
+            bestsubsolve,subexpoints = gensubsolve(subg,points)
+            for solve in bestsubsolve:
+                ni = subg[solve / 4]
+                pi = solve % 4
+                #solvepoints[ni] = subexpoints[solve]
+                allsolve[ni,pi] = subexpoints[solve]
+            subsolves.append(bestsubsolve)
+    isolatesolve = genisolatesol(isolate,points)
+    for sol in isolatesolve:
+        allsolve[sol[0],sol[1]] = sol[2]
+    print "success!"
+    return isolate,subsolves
+
+def gensubsolve(subg,points):
+    subexpoints = gensubcfg(points[subg])
+    subconflictgraph,subextri = genSolve(subexpoints)
+    for i in range(subconflictgraph.shape[0]):
+        for j in range(i - i % 4,i + 4 - (i % 4)):
+            if i==j: continue
+            subconflictgraph[i,j] = 1
+    subgraphcomplement = np.where(subconflictgraph>0,0,1)
+    for i in range(subgraphcomplement.shape[0]):
+        subgraphcomplement[i][i] = 0
+    greedym = mcpAlgorithm.greedymcp()
+    bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
+    return bestsubsolve,subexpoints
+
+def genisolatesol(isolate,points):
+    
+    sols = list()
+    for i in range(len(isolate)):
+        exps = gensubpoint(points[isolate[i]])
+        pi = random.randint(0,3)
+        ps = exps[pi]
+        sols.append([isolate[i],pi,ps])
+    return sols
+        
+        
 
 def randomSolve(cfg,sol,ps):
     for i in range(len(ps)):
