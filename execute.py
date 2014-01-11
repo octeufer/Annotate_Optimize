@@ -4,11 +4,13 @@ author : Octeufer
 '''
 
 import sys
+import numpy as np
 sys.path.append("d:/data/annooptimize")
 
 #import AnnoOptmize
 import optimizemodel
 import triangle
+import mcpAlgorithm
 '''
 #paras = [dbname,poishp,barriershp,annopoishp]
 paras = ["tanno1130","supmakclip2","rannoclip2","supmakclip2"]
@@ -22,6 +24,16 @@ optimizem.dataengine.insertpbarriergeo(paras[3])
 optimizem.domaingenerate(None)
 '''
 #a = optimizem.solgen()
+'''
 points,tri = triangle.gentri(triangle.pointfeaturepath)
 expoints = triangle.gensubcfg(points)
 conflictg,extri,solve,plist = triangle.genSolve(expoints,points)
+'''
+grapht = np.load("d:/data/annooptimize/Annodata/graphdata/conflictgraph.npz.npy")
+acgt = np.load("d:/data/annooptimize/Annodata/graphdata/accesssubgraph.npz.npy")
+points = np.load("d:/data/annooptimize/Annodata/graphdata/Points.npz.npy")
+allsolve = np.zeros((len(points),4,2),np.float64)
+iss,subs = triangle.solvegenerate(acgt,points,allsolve)
+triangle.genSolveshp(allsolve,"soll1.shp")
+triangle.genPolySolveshp(allsolve,"sollpoly.shp")
+

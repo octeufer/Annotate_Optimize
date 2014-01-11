@@ -20,7 +20,7 @@ clen = float(25) / 1000 * 10000# mm sqrt((sym/2 + labeldistance + labelsize[0])*
 dx = 100 # (sym / 2 + labelsize[0] + labeldistance) / 2 / 1000 * 10000
 dy = 75
 dclen = 125 # clen/2
-
+countbbb = 0
 
 def genShp(linelist,edges,name):
     w = shapefile.Writer(shapefile.POLYLINE)
@@ -285,6 +285,11 @@ def solvegenerate(accesssubg,points,allsolve):
 def gensubsolve(subg,points):
     subexpoints = gensubcfg(points[subg])
     subconflictgraph,subextri = genSolve(subexpoints)
+    
+    for i in range(subconflictgraph.shape[0]):
+        for j in range(subconflictgraph.shape[0]):
+            if subconflictgraph[i,j]==0 and caldis(i,j,subexpoints)<250:
+                subconflictgraph[i,j]=1  
     for i in range(subconflictgraph.shape[0]):
         for j in range(i - i % 4,i + 4 - (i % 4)):
             if i==j: continue
@@ -292,6 +297,7 @@ def gensubsolve(subg,points):
     subgraphcomplement = np.where(subconflictgraph>0,0,1)
     for i in range(subgraphcomplement.shape[0]):
         subgraphcomplement[i][i] = 0
+        
     greedym = mcpAlgorithm.greedymcp()
     bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
     return bestsubsolve,subexpoints
