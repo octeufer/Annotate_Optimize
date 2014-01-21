@@ -268,7 +268,7 @@ def solvegenerate(accesssubg,points,allsolve):
         if(len(subg)==1):
             isolate.extend(subg)
         else:
-            print subg
+            #print subg
             bestsubsolve,subexpoints = gensubsolve(subg,points)
             for solve in bestsubsolve:
                 ni = subg[solve / 4]
@@ -276,7 +276,8 @@ def solvegenerate(accesssubg,points,allsolve):
                 #solvepoints[ni] = subexpoints[solve]
                 allsolve[ni,pi] = subexpoints[solve]
             subsolves.append(bestsubsolve)
-    isolatesolve = genisolatesol(isolate,points)
+    #isolatesolve = genisolatesol(isolate,points)
+    isolatesolve = prefisosol(isolate,points)
     for sol in isolatesolve:
         allsolve[sol[0],sol[1]] = sol[2]
     print "success!"
@@ -298,8 +299,10 @@ def gensubsolve(subg,points):
     for i in range(subgraphcomplement.shape[0]):
         subgraphcomplement[i][i] = 0
         
-    greedym = mcpAlgorithm.greedymcp()
-    bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
+    #greedym = mcpAlgorithm.greedymcp()
+    #bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
+    tabum = mcpAlgorithm.tabumcp()
+    bestsubsolve = tabum.FindMaxClique(subgraphcomplement,50,subgraphcomplement.shape[0])
     return bestsubsolve,subexpoints
 
 def genisolatesol(isolate,points):
@@ -311,8 +314,23 @@ def genisolatesol(isolate,points):
         ps = exps[pi]
         sols.append([isolate[i],pi,ps])
     return sols
+
+def prefisosol(isolate,points):
+    sols = list()
+    for i in range(len(isolate)):
+        exps = gensubpoint(points[isolate[i]])
+        pi = 0
+        ps = exps[pi]
+        sols.append([isolate[i],pi,ps])
+    return sols
         
-        
+def costac(allsolve):
+    cost = 0
+    for i,solve in enumerate(allsolve):
+        for j in range(4):
+            if solve[j][0]>0:
+                cost = cost + j * 0.0003
+    return cost
 
 def randomSolve(cfg,sol,ps):
     for i in range(len(ps)):
