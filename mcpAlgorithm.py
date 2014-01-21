@@ -148,96 +148,104 @@ class greedymcp:
 
 class tabumcp:
     
-    def __init__(self):
-        pass
+    def __init__(self,graph):
+        self.graph = graph
+        self.clique = list()
+        self.time = 0
+        self.timeBestClique = 0
+        self.timeRestart = 0
+        
+        self.prohibitPeriod = 1
+        self.timeProhibitChanged = 0
+                   
+        self.lastMoved = np.zeros((graph.shape[0]),np.int32)
+        self.history = {}
     
-    def FindMaxClique(self,graph,maxTime,targetCliqueSize):
-        clique = list()
-        time = 0
-        timeBestClique = 0
-        timeRestart = 0
-        
-        prohibitPeriod = 1
-        timeProhibitChanged = 0
-        
+    def FindMaxClique(self,maxTime):
         nodeToAdd = -1
         nodeToDrop = -1
-        
-        lastMoved = np.zeros((graph.shape[0]),np.int32)
-        history = {}
-        
-        randomNode = random.randint(0,graph.shape[0]-1)
+        iter = 0
+        seedNode = -1
+        temp = [self.lastMoved[i] for i in range(len(self.lastMoved)) if self.lastMoved[i] == 0]
+        if len(temp)>0:
+            seedNode = temp[random.randint(0,len(temp)-1)]
+        else:
+            seedNode = random.randint(0,self.graph.shape[0]-1)
+
+        #randomNode = random.randint(0,graph.shape[0]-1)
         #print "Adding node %d" %randomNode
-        clique.append(randomNode)
+        self.clique = list()
+        self.clique.append(seedNode)
         
         bestClique = list()
         bestSize = len(bestClique)
-        timeBestClique = time
+        self.timeBestClique = self.time
         
-        possibleAdd = self.MakePossibleAdd(graph,clique)
-        oneMissing = self.MakeOneMissing(graph,clique)
+        possibleAdd = self.MakePossibleAdd(self.graph,self.clique)
+        oneMissing = self.MakeOneMissing(self.graph,self.clique)
         
-        while time < maxTime and bestSize < targetCliqueSize:
-            time = time + 1
+        while iter < maxTime and bestSize < self.graph.shape[0]:
+            iter = iter + 1
+            self.time = self.time + 1
             cliqueChanged = False
             if len(possibleAdd) > 0:
                 #nodeToAdd = self.GetNodeToAdd(graph,possibleAdd)
-                allowedAdd = self.SelectAllowedNodes(possibleAdd,time,prohibitPeriod,lastMoved)
+                allowedAdd = self.SelectAllowedNodes(possibleAdd,self.time,self.prohibitPeriod,self.lastMoved)
                 if len(allowedAdd)>0:
-                    nodeToAdd = self.GetNodeToAdd(graph,allowedAdd,possibleAdd)
+                    nodeToAdd = self.GetNodeToAdd(self.graph,allowedAdd,possibleAdd)
                     #print "Adding node %d" %nodeToAdd
-                    clique.append(nodeToAdd)
-                    lastMoved[nodeToAdd]
-                    clique.sort()
+                    self.clique.append(nodeToAdd)
+                    self.lastMoved[nodeToAdd]
+                    self.clique.sort()
                     cliqueChanged = True
-                    if len(clique) > bestSize:
-                        bestSize = len(clique)
+                    if len(self.clique) > bestSize:
+                        bestSize = len(self.clique)
                         bestClique = list()
-                        bestClique.extend(clique)
-                        timeBestClique = time
+                        bestClique.extend(self.clique)
+                        self.timeBestClique = self.time
             if cliqueChanged == False:
-                if len(clique) > 0:
+                if len(self.clique) > 0:
                     #nodeToDrop = self.GetNodeToDrop(graph,clique,oneMissing)
-                    allowedInClique = self.SelectAllowedNodes(clique,time,prohibitPeriod,lastMoved)
+                    allowedInClique = self.SelectAllowedNodes(self.clique,self.time,self.prohibitPeriod,self.lastMoved)
                     if len(allowedInClique)>0:
-                        nodeToDrop = self.GetNodeToDrop(graph,allowedInClique,oneMissing)
+                        nodeToDrop = self.GetNodeToDrop(self.graph,allowedInClique,oneMissing)
                         #print "Dropping node %d" %nodeToDrop
-                        clique.remove(nodeToDrop)
-                        lastMoved[nodeToDrop] = time
-                        clique.sort()
+                        self.clique.remove(nodeToDrop)
+                        self.lastMoved[nodeToDrop] = self.time
+                        self.clique.sort()
                         cliqueChanged = True
             
             if cliqueChanged == False:
-                if len(clique) > 0:
-                    nodeToDrop = clique[random.randint(0,len(clique)-1)]
-                    clique.remove(nodeToDrop)
-                    lastMoved[nodeToDrop] = time
-                    clique.sort()
+                if len(self.clique) > 0:
+                    nodeToDrop = self.clique[random.randint(0,len(self.clique)-1)]
+                    self.clique.remove(nodeToDrop)
+                    self.lastMoved[nodeToDrop] = self.time
+                    self.clique.sort()
                     cliqueChanged = True                
             
             restart = 2 * bestSize
-            if (time - timeBestClique) > restart and (time - timeRestart) > restart:
-                #print "Restarting with prohibit period %d" %prohibitPeriod
-                timeRestart = time
-                prohibitPeriod = 1
-                timeProhibitChanged = time
+            if (self.time - self.timeBestClique) > restart and (self.time - self.timeRestart) > restart:
+                #print "Restarting with prohibit period %d" %self.prohibitPeriod
+                self.timeRestart = self.time
+                self.prohibitPeriod = 1
+                self.timeProhibitChanged = self.time
                 
-                history = {}
+                self.history = {}
                 
-                seedNode = -1
-                temp = np.zeros((len(lastMoved)),np.int32)
+                self.seedNode = -1
+                temp = [self.lastMoved[i] for i in range(len(self.lastMoved)) if self.lastMoved[i] == 0]
                 if len(temp)>0:
                     seedNode = temp[random.randint(0,len(temp)-1)]
                 else:
-                    seedNode = random.randint(0,graph.shape[0]-1)
+                    seedNode = random.randint(0,self.graph.shape[0]-1)
                 #seedNode = random.randint(0,graph.shape[0]-1)
-                clique = list()
-                clique.append(seedNode)
+                self.clique = list()
+                self.clique.append(seedNode)
             
-            possibleAdd = self.MakePossibleAdd(graph,clique)
-            oneMissing = self.MakeOneMissing(graph,clique)
+            possibleAdd = self.MakePossibleAdd(self.graph,self.clique)
+            oneMissing = self.MakeOneMissing(self.graph,self.clique)
             
-            prohibitPeriod,timeProhibitChanged = self.UpdateProhibitPeriod(graph,clique,bestSize,history,time,prohibitPeriod,timeProhibitChanged)
+            self.prohibitPeriod,self.timeProhibitChanged = self.UpdateProhibitPeriod(self.graph,self.clique,bestSize,self.history,self.time,self.prohibitPeriod,self.timeProhibitChanged)
         
         return bestClique
     

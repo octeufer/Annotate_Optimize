@@ -301,7 +301,7 @@ def gensubsolve(subg,points):
         
     #greedym = mcpAlgorithm.greedymcp()
     #bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
-    tabum = mcpAlgorithm.tabumcp()
+    tabum = mcpAlgorithm.tabumcp(subgraphcomplement)
     bestsubsolve = tabum.FindMaxClique(subgraphcomplement,50,subgraphcomplement.shape[0])
     return bestsubsolve,subexpoints
 
@@ -332,9 +332,56 @@ def costac(allsolve):
                 cost = cost + j * 0.0003
     return cost
 
-def randomSolve(cfg,sol,ps):
-    for i in range(len(ps)):
-        123
+def gentabuclass(subg,points):
+    subexpoints = gensubcfg(points[subg])
+    subconflictgraph,subextri = genSolve(subexpoints)
+    
+    for i in range(subconflictgraph.shape[0]):
+        for j in range(subconflictgraph.shape[0]):
+            if subconflictgraph[i,j]==0 and caldis(i,j,subexpoints)<250:
+                subconflictgraph[i,j]=1  
+    for i in range(subconflictgraph.shape[0]):
+        for j in range(i - i % 4,i + 4 - (i % 4)):
+            if i==j: continue
+            subconflictgraph[i,j] = 1
+    subgraphcomplement = np.where(subconflictgraph>0,0,1)
+    for i in range(subgraphcomplement.shape[0]):
+        subgraphcomplement[i][i] = 0
+        
+    #greedym = mcpAlgorithm.greedymcp()
+    #bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
+    tabuclass = mcpAlgorithm.tabumcp(subgraphcomplement)
+    #bestsubsolve = tabum.FindMaxClique(subgraphcomplement,50,subgraphcomplement.shape[0])
+    return (tabuclass,subexpoints,subg)
 
+def globaltabuiter(accesssubg,points,maxiter):
+    isolate = list()
+    tabucs = list()
+    t=0
+    costs = dict()
+    for subg in accesssubg:
+        if(len(subg)==1):
+            isolate.extend(subg)
+        else:
+            #print subg
+            tabuclasstuple = gentabuclass(subg,points)
+            tabucs.append(tabuclasstuple)
+    #isolatesolve = genisolatesol(isolate,points)
+    while t<maxiter:
+        t=t+1
+        asol = np.zeros((len(points),4,2),np.float64)
+        for tc in tabucs:
+            bestsubsolve = tc[0].FindMaxClique(50)
+            for solve in bestsubsolve:
+                ni = tc[2][solve / 4]
+                pi = solve % 4
+                #solvepoints[ni] = subexpoints[solve]
+                asol[ni,pi] = tc[1][solve]
+        isolatesolve = prefisosol(isolate,points)
+        for sol in isolatesolve:
+            asol[sol[0],sol[1]] = sol[2]
+        costs[costac(asol)]=asol
+        print "success!"
+    return costs
 
     
