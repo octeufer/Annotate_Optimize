@@ -10,6 +10,8 @@ import math
 import shapefile
 import random
 import mcpAlgorithm
+import time
+from ctypes import *
 
 shpname = 'd:/data/annooptimize/Annodata/'
 pointfeaturepath = 'd:/data/annooptimize/Annodata/supermarket.shp'
@@ -178,6 +180,7 @@ def gensubpoint(pi):
     pi4 = [pi[0]+dx,pi[1]-dy]
     return list([pi1,pi2,pi3,pi4])
 
+#extend points
 def gensubcfg(spoints):
     expandps = []
     for i in range(len(spoints)):
@@ -352,7 +355,7 @@ def gentabuclass(subg,points):
     #bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
     tabuclass = mcpAlgorithm.tabumcp(subgraphcomplement)
     #bestsubsolve = tabum.FindMaxClique(subgraphcomplement,50,subgraphcomplement.shape[0])
-    return (tabuclass,subexpoints,subg)
+    return (tabuclass,subexpoints,subg,subgraphcomplement)
 
 def globaltabuiter(accesssubg,points,maxiter):
     isolate = list()
@@ -367,6 +370,7 @@ def globaltabuiter(accesssubg,points,maxiter):
             tabuclasstuple = gentabuclass(subg,points)
             tabucs.append(tabuclasstuple)
     #isolatesolve = genisolatesol(isolate,points)
+    time.clock()
     while t<maxiter:
         t=t+1
         asol = np.zeros((len(points),4,2),np.float64)
@@ -381,7 +385,73 @@ def globaltabuiter(accesssubg,points,maxiter):
         for sol in isolatesolve:
             asol[sol[0],sol[1]] = sol[2]
         costs[costac(asol)]=asol
-        print "success!"
-    return costs
+        print "success!time=%s" %time.clock()
+    return costs,tabucs
 
+class paras(Structure):
+    _fields_ = [("asize",c_int),("adjlist",POINTER(POINTER(c_bool)))]
+    
+class CliqueData(Structure):
+    _fields_ = [("qmax",POINTER(c_int)),("qsize",c_int)]
+
+def mcqdcs(accesssubg,points,allsolve):
+    getclique = CDLL("d:/data/annooptimize/test/dytest/Project1.dll")
+    isolate = list()
+    #subsolves = list()
+    
+    for subg in accesssubg:
+        if(len(subg)==1):
+            isolate.extend(subg)
+        else:
+            #print subg
+            bestsubsolve,subexpoints = mcqdsubsol(subg,points,getclique)
+            '''
+            for i in range(bsubsolsize):
+                ni = subg[bestsubsolve[i] / 4]
+                pi = bestsubsolve[i] % 4
+                #solvepoints[ni] = subexpoints[solve]
+                allsolve[ni,pi] = subexpoints[bestsubsolve[i]]
+            '''
+            for solve in bestsubsolve:
+                ni = subg[solve / 4]
+                pi = solve % 4
+                #solvepoints[ni] = subexpoints[solve]
+                allsolve[ni,pi] = subexpoints[solve]
+            #subsolves.append(bestsubsolve)
+    #isolatesolve = genisolatesol(isolate,points)
+    isolatesolve = prefisosol(isolate,points)
+    for sol in isolatesolve:
+        allsolve[sol[0],sol[1]] = sol[2]
+    cost = costac(allsolve)
+    print "success!"
+    return cost,allsolve
+
+def mcqdsubsol(subg,points,getclique):
+    subexpoints = gensubcfg(points[subg])
+    subconflictgraph,subextri = genSolve(subexpoints)
+    
+    for i in range(subconflictgraph.shape[0]):
+        for j in range(subconflictgraph.shape[0]):
+            if subconflictgraph[i,j]==0 and caldis(i,j,subexpoints)<250:
+                subconflictgraph[i,j]=1  
+    for i in range(subconflictgraph.shape[0]):
+        for j in range(i - i % 4,i + 4 - (i % 4)):
+            if i==j: continue
+            subconflictgraph[i,j] = 1
+    subgraphcomplement = np.where(subconflictgraph>0,0,1)
+    for i in range(subgraphcomplement.shape[0]):
+        subgraphcomplement[i][i] = 0
+    
+    x = paras(subgraphcomplement.shape[0],(POINTER(c_bool) * subgraphcomplement.shape[0])())
+    for i in range(subgraphcomplement.shape[0]):
+        x.adjlist[i] = (c_bool * subgraphcomplement.shape[0])()
+    for i in range(x.asize):
+        for j in range(x.asize):
+            x.adjlist[i][j] = (subgraphcomplement[i][j]==1)
+    getclique.getClique.argtypes = [POINTER(POINTER(c_bool)),c_int]
+    getclique.getClique.restype = CliqueData
+    cliquedata = getclique.getClique(x.adjlist,x.asize)
+    bestsubsolve = [cliquedata.qmax[i] for i in range(cliquedata.qsize)]
+    #bestsubsolve = tabum.FindMaxClique(subgraphcomplement,50,subgraphcomplement.shape[0])
+    return bestsubsolve,subexpoints
     
