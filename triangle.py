@@ -472,7 +472,6 @@ def mcqdsubsol(subg,points,getclique):
             x.adjlist[i][j] = (subgraphcomplement[i][j]==1)
     getclique.getClique.argtypes = [POINTER(POINTER(c_bool)),c_int]
     getclique.getClique.restype = CliqueData
-    print "done"
     cliquedata = getclique.getClique(x.adjlist,x.asize)
     bestsubsolve = [cliquedata.qmax[i] for i in range(cliquedata.qsize)]
     #bestsubsolve = tabum.FindMaxClique(subgraphcomplement,50,subgraphcomplement.shape[0])
@@ -773,7 +772,7 @@ def mcqdsubsol2(subg,points,getclique):
 '''
 dynamic size
 author by: octeufer leluch
-2014/3/1
+2014/3/15
 '''
 class LabelPara:
     def __init__(self,widn,hein,ll):
@@ -827,27 +826,54 @@ def genPolySolveshpdy(allsolve,plabels,name):
 def subextend2dy(spoints,roadfeaturepath,plabels,subg):
     expandps = list()
     segs,npsegs = getsegs(roadfeaturepath)
-    cells = seg2cell(segs,120)
+    cells = seg2cell(segs,60)
     for i in range(len(spoints)):
         psubs = gensubpointdy(spoints[i],subg[i],plabels)
         #nearestseg = psnapseg(spoints[i],segs)
         nearestcell = psnapcell(spoints[i],cells)
+        '''
         for j in range(len(psubs)):
             if not crossornot((spoints[i],psubs[j]),nearestcell):
                 subpoint = SubPoint(i,j,psubs[j])
                 expandps.append(subpoint)
+        '''
+        if nearestcell[0][0] == nearestcell[1][0]:
+            expandps.extend([SubPoint(i,j,psubs[j]) for j in range(len(psubs)) if (psubs[j][0]-spoints[i][0]) * (nearestcell[0][0]-spoints[i][0]) < 0])
+        elif nearestcell[0][1] == nearestcell[1][1]:
+            expandps.extend([SubPoint(i,j,psubs[j]) for j in range(len(psubs)) if (psubs[j][1]-spoints[i][1]) * (nearestcell[0][1]-spoints[i][1]) < 0])
+        else:
+            a = nearestcell[0][1]-nearestcell[1][1]
+            b = nearestcell[1][0]-nearestcell[0][0]
+            c = (nearestcell[0][0]-nearestcell[1][0])*spoints[i][1] - (nearestcell[0][1]-nearestcell[1][1])*spoints[i][0]
+            expandps.extend([SubPoint(i,j,psubs[j]) for j in range(len(psubs)) if (a*psubs[j][0] + b*psubs[j][1] + c) * (a*nearestcell[0][0] + b*nearestcell[0][1] + c) < 0])        
     expoints = np.array(expandps)
     return expoints
 
+def subextend2dynoroad(spoints,roadfeaturepath,plabels,subg):
+    expandps = list()
+    for i in range(len(spoints)):
+        psubs = gensubpointdy(spoints[i],subg[i],plabels)
+        expandps.extend([SubPoint(i,j,psubs[j]) for j in range(len(psubs))])
+    expoints = np.array(expandps)
+    return expoints
+    
+
 def gensubsolve2dy(subg,points,plabels):
     #subexpoints = subextend(points[subg],roadfeaturepath)
-    subexpoints = subextend2dy(points[subg],roadfeaturepath,plabels,subg)
+    
+    #subexpoints = subextend2dy(points[subg],roadfeaturepath,plabels,subg)
+    subexpoints = subextend2dynoroad(points[subg],roadfeaturepath,plabels,subg)
     #subconflictgraph,subextri = genSolve(subexpoints)
     subconflictgraph = np.zeros((len(subexpoints),len(subexpoints)),np.int32)
     for i in range(subconflictgraph.shape[0]):
         for j in range(subconflictgraph.shape[0]):
+            '''
             if caldis2(i,j,subexpoints)<(plabels[subg[subexpoints[i].point]].la + plabels[subg[subexpoints[j].point]].la)/2 :
                 subconflictgraph[i,j]=1
+            '''
+            if caldis2(i,j,subexpoints) < (plabels[subg[subexpoints[i].point]].la + plabels[subg[subexpoints[j].point]].la)/2 :
+                if isRectCross(rectP(subexpoints[i].coor,plabels[subg[subexpoints[i].point]]),rectP(subexpoints[j].coor,plabels[subg[subexpoints[j].point]])):
+                    subconflictgraph[i,j]=1
             if subexpoints[i].point == subexpoints[j].point and i!=j:
                 subconflictgraph[i,j]=1  
     subgraphcomplement = np.where(subconflictgraph>0,0,1)
@@ -904,3 +930,46 @@ def prefisosol2dy(isolate,points,plabels):
         p = v[random.randint(0,len(v)-1)]
         sols.append([isolate[p.point],p.subpoint,p.coor])
     return sols
+'''
+rect cross
+candidate p decision
+'''
+def rectP(p,plabel):
+    pmax = (p[0]+(float(plabel.width) / 2),p[1]+(float(plabel.height) / 2))
+    pmin = (p[0]-(float(plabel.width) / 2),p[1]-(float(plabel.height) / 2))
+    return (pmax,pmin)
+
+def isRectCross(r1,r2):
+    return (r1[0][0] >= r2[1][0] and r1[0][1] >= r2[1][1] and r2[0][0] >= r1[1][0] and r2[0][1] >= r1[1][1])
+
+
+'''
+3.17 gen expoints shp
+'''
+def genEXPshpup(expoints,name):
+    w = shapefile.Writer(shapefile.POINT)
+    w.field('pnum','C','40')
+    w.field('porinum','C','40')
+    for i,point in enumerate(expoints):
+        w.point(point.coor[0],point.coor[1])
+        w.record(pnum=str(i),porinum=str(point.subpoint))
+    w.save(shpname + name)
+        
+'''
+sub subgraph
+'''
+def idsetsub(subexpoints,subgraph):
+    subacg2 = accesssubg(subgraph)
+    tabuobjs = list()
+    for sacg in subgraph:
+        sacggraph = np.zeros((len(sacg),len(sacg)),np.int32)
+        for i in range(len(sacg)):
+            for j in range(len(sacg)):
+                sacg[i][j] = subgraph[sacg[i]][sacg[j]]
+        subsacggraphcomplement = np.where(sacggraph>0,0,1)
+        for i in range(subsacggraphcomplement.shape[0]):
+            subsacggraphcomplement[i][i] = 0
+        tabuclass = mcpAlgorithm.tabumcp(subsacggraphcomplement)
+        tabuobjs.append((tabuclass,sacg))
+    return (tabuobjs,subexpoints)
+        
