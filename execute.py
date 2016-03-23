@@ -5,7 +5,7 @@ author : Octeufer
 
 import sys
 import numpy as np
-sys.path.append("d:/data/annooptimize")
+sys.path.append("/Users/octeufer/Work/workspace/annooptimize")
 
 #import AnnoOptmize
 import optimizemodel
@@ -29,9 +29,9 @@ points,tri = triangle.gentri(triangle.pointfeaturepath)
 expoints = triangle.gensubcfg(points)
 conflictg,extri,solve,plist = triangle.genSolve(expoints,points)
 '''
-grapht = np.load("d:/data/annooptimize/Annodata/graphdata/conflictgraph.npz.npy")
-acgt = np.load("d:/data/annooptimize/Annodata/graphdata/accesssubgraph.npz.npy")
-points = np.load("d:/data/annooptimize/Annodata/graphdata/Points.npz.npy")
+grapht = np.load("/Users/octeufer/Work/workspace/annooptimize/Annodata/graphdata/conflictgraph.npz.npy")
+acgt = np.load("/Users/octeufer/Work/workspace/annooptimize/Annodata/graphdata/accesssubgraph.npz.npy")
+points = np.load("/Users/octeufer/Work/workspace/annooptimize/Annodata/graphdata/Points.npz.npy")
 allsolve = np.zeros((len(points),4,2),np.float64)
 iss,subs = triangle.solvegenerate(acgt,points,allsolve)
 triangle.genSolveshp(allsolve,"soll1.shp")
