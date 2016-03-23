@@ -60,3 +60,29 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+#shapefile
+*.shp
+*.dbf
+*.sbn
+*.shx
+*.sbx
+#xml
+*.xml
+#arcgis
+*.mxd
+
+#pyc
+.pyc
+
+#folder
+test/
+Annodata/
+0730datatest
+
+#mac
+.DS_Store
+
+#ide
+.project
+.pydevproject

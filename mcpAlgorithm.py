@@ -195,7 +195,7 @@ class tabumcp:
                     nodeToAdd = self.GetNodeToAdd(self.graph,allowedAdd,possibleAdd)
                     #print "Adding node %d" %nodeToAdd
                     self.clique.append(nodeToAdd)
-                    self.lastMoved[nodeToAdd]
+                    self.lastMoved[nodeToAdd] = self.time
                     self.clique.sort()
                     cliqueChanged = True
                     if len(self.clique) > bestSize:

@@ -4,14 +4,15 @@ Author: octeufer
 '''
  
 import numpy as np
-import scipy as sp
+#import scipy as sp
+#import datetime
 from scipy.spatial import Delaunay
 import math
 import shapefile
 import random
 import mcpAlgorithm
 import time
-from ctypes import *
+#from ctypes import *
 
 shpname = 'd:/data/annooptimize/Annodata/'
 pointfeaturepath = 'd:/data/annooptimize/Annodata/supermarket.shp'
@@ -792,6 +793,23 @@ def dynamicSize(points):
         plabels.append(labelpara)
     return plabels
 
+def setLabelSize(points,lasizes):
+    plabels = list()
+    for i in range(len(points)):
+        fsize = lasizes[i]
+        if fsize<6:
+            w = fsize
+            h = 1
+        else:
+            w = (fsize+1) / 2
+            h = 2
+        width = w * 40
+        height = h * 40
+        longla = math.sqrt(width*width + height*height)
+        labelpara = LabelPara(width,height,longla)
+        plabels.append(labelpara)
+    return plabels
+
 def conflictgraphdy(points,tri,plabels):
     g = np.zeros((len(points),len(points)),np.int32)
     #subgraph = list()
@@ -875,15 +893,22 @@ def gensubsolve2dy(subg,points,plabels):
                 if isRectCross(rectP(subexpoints[i].coor,plabels[subg[subexpoints[i].point]]),rectP(subexpoints[j].coor,plabels[subg[subexpoints[j].point]])):
                     subconflictgraph[i,j]=1
             if subexpoints[i].point == subexpoints[j].point and i!=j:
-                subconflictgraph[i,j]=1  
+                subconflictgraph[i,j]=1 
+                
+    '''
+    2014/3/17 all to sub
+    
     subgraphcomplement = np.where(subconflictgraph>0,0,1)
     for i in range(subgraphcomplement.shape[0]):
-        subgraphcomplement[i][i] = 0
-        
+        subgraphcomplement[i][i] = 0    
     #greedym = mcpAlgorithm.greedymcp()
     #bestsubsolve = greedym.FindMaxClique(subgraphcomplement,200,subgraphcomplement.shape[0])
     tabuclass = mcpAlgorithm.tabumcp(subgraphcomplement)
-    return (tabuclass,subexpoints,subg,subgraphcomplement,subconflictgraph)
+    '''
+    tabuobjs = idsetsub(subexpoints,subconflictgraph)
+               
+    #return (tabuclass,subexpoints,subg,subgraphcomplement,subconflictgraph)
+    return (tabuobjs,subexpoints,subg,subconflictgraph)
 
 def globaltabuiter2dy(accesssubg,points,maxiter,plabels):
     isolate = list()
@@ -903,12 +928,30 @@ def globaltabuiter2dy(accesssubg,points,maxiter,plabels):
         t=t+1
         asol = np.zeros((len(points),4,2),np.float64)
         for tc in tabucs:
+            '''
             bestsubsolve = tc[0].FindMaxClique(500)
             for solve in bestsubsolve:
                 ni = tc[2][tc[1][solve].point]
                 pi = tc[1][solve].subpoint
                 #solvepoints[ni] = subexpoints[solve]
                 asol[ni,pi] = tc[1][solve].coor
+            
+            '''
+            for tabuobj in tc[0]:
+                '''
+                if len(tabuobj[1])<50:
+                    bestsol = tabuobj[0].FindMaxClique(100)
+                elif len(tabuobj[1])<100:
+                    bestsol = tabuobj[0].FindMaxClique(300)
+                else:
+                    bestsol = tabuobj[0].FindMaxClique(500)
+                '''
+                bestsol = tabuobj[0].FindMaxClique(500)
+                for sol in bestsol:
+                    ni = tc[2][tc[1][tabuobj[1][sol]].point]
+                    pi = tc[1][tabuobj[1][sol]].subpoint
+                    asol[ni,pi] = tc[1][tabuobj[1][sol]].coor
+                       
         isolatesolve = prefisosol2dy(isolate,points,plabels)
         for sol in isolatesolve:
             asol[sol[0],sol[1]] = sol[2]
@@ -961,15 +1004,15 @@ sub subgraph
 def idsetsub(subexpoints,subgraph):
     subacg2 = accesssubg(subgraph)
     tabuobjs = list()
-    for sacg in subgraph:
+    for sacg in subacg2:
         sacggraph = np.zeros((len(sacg),len(sacg)),np.int32)
         for i in range(len(sacg)):
             for j in range(len(sacg)):
-                sacg[i][j] = subgraph[sacg[i]][sacg[j]]
+                sacggraph[i][j] = subgraph[sacg[i]][sacg[j]]
         subsacggraphcomplement = np.where(sacggraph>0,0,1)
         for i in range(subsacggraphcomplement.shape[0]):
             subsacggraphcomplement[i][i] = 0
         tabuclass = mcpAlgorithm.tabumcp(subsacggraphcomplement)
         tabuobjs.append((tabuclass,sacg))
-    return (tabuobjs,subexpoints)
+    return tabuobjs
         
