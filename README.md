@@ -1,5 +1,5 @@
 # Annotate_Optimize
-## Optimize method for annotation
+## Optimizing algorithm for map annotation
 
 A series of tools to solve the mapping annotation of Point feature problem.   
 This method based on the paper "An automated point-feature cartographic annotation model considering the constrain of road network" published in 2015.    
